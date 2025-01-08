@@ -43,4 +43,4 @@ Please provide answers to these questions using markdown notation and place them
 - Out of this class, I want to become more familiar with computer systems and virtual machines. Since I am not that comfortable with ideas surrounding them, I want learn enough information to the degree that I can have conversations related computer systems and virtual machines.
 
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
-- The concern that I have with being successful in this class is time management. It is largest concern that I do not manage my time correctly and fall behind in the content of the course.
+- The concern that I have with being successful in this class is time management. It is my largest concern that I do not manage my time correctly and fall behind in the content of the course.
