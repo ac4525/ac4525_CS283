@@ -35,7 +35,12 @@ Please provide answers to these questions using markdown notation and place them
 
 
 3. Please provide a link to the repository you are using for this class.
-https://github.com/ac4525/ac4525_CS283
-4. Briefly describe what you want to get out of this class. 
+   
+- https://github.com/ac4525/ac4525_CS283
+
+4. Briefly describe what you want to get out of this class.
+
+- Out of this class, I want to become more familiar with computer systems and virtual machines. Since I am not that comfortable with ideas surrounding them, I want learn enough information to the degree that I can have conversations related computer systems and virtual machines.
 
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
+- The concern that I have with being successful in this class is time management. It is largest concern that I do not manage my time correctly and fall behind in the content of the course.
