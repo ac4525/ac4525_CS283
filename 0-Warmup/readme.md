@@ -35,7 +35,7 @@ Please provide answers to these questions using markdown notation and place them
 
 
 3. Please provide a link to the repository you are using for this class.
-
-4. Briefly describe what you want to get out of this class.
+https://github.com/ac4525/ac4525_CS283
+4. Briefly describe what you want to get out of this class. 
 
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
