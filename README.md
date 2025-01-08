@@ -1,4 +1,3 @@
-# ac4525_CS283
+# CS283-002
 
-Alvin Chen (ac4525)
-CS283-002 Assignments
+This repository will be used to contain ALvin Chen (ac4525)'s assignments for CS283.
