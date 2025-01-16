@@ -14,7 +14,7 @@ int  setup_buff(char *, char *, int);
 int  count_words(char *, int, int);
 void  word_print(char *, int, int);
 void  reverse(char *, int, int);
-void replace(char *, int, int, char , char);
+// void replace(char *, int, int, char *, char *); save for tomorrow
 //add additional prototypes here
 
 
@@ -25,7 +25,6 @@ int setup_buff(char *buff, char *user_str, int len){
     if (buff == NULL || user_str == NULL || *user_str == '\0'){
         return -2;
     }
-
     //to count the amount of characters
     int str_len = 0;
     //to check if the space if duplicate
@@ -33,25 +32,21 @@ int setup_buff(char *buff, char *user_str, int len){
     while (*user_str != '\0'){
         if (*user_str != ' ' && *user_str != '\t'){
             *buff = *user_str;
-            buff++;
-            str_len++;
             space = 0;
         }
         else if (space == 0){
             *buff = ' ';
-            buff++;
-            str_len++;
             space = 1;
         }
+        buff++;
+        str_len++;
         user_str++;
     }
-
     //remove trailing spaces
     while (str_len > 0 && (*(buff - 1) == ' ' || *(buff - 1) == '\t')) {
         buff--;  
         str_len--;  
     }
-
     //user's string is too long
     if (str_len > len){
         return -1;
@@ -60,7 +55,6 @@ int setup_buff(char *buff, char *user_str, int len){
     else if (str_len == 0){
         return -2;
     }    
-
     //store the original length of the words
     int original_len = str_len;
     //adds trailing dots to reach 50 characters
@@ -98,14 +92,12 @@ int count_words(char *buff, int len, int str_len){
     else {
         characters = str_len;
     }
-    
     //counts amount of spaces to correlate to number of words
     for (int i = 0; i < characters; i++) {
         if (*(buff + i) == ' ') {
             words++;
         }
     }   
-
     //extra word from counting spaces
     return words + 1;
 }
@@ -125,7 +117,6 @@ void word_print(char *buff, int len, int str_len) {
     } else {
         characters = str_len;
     }
-    
     //iterates through entire buffer 
     for (int i = 0; i < characters; i++) {
         //every new word will reset the word pointer
@@ -163,10 +154,10 @@ void reverse(char *buff, int len, int str_len){
         //swaps front and back characters
         *(buff + i) = *(buff + characters - i - 1);
         *(buff + characters - i - 1) = front;
-      
     }
     
 }
+
 
 int main(int argc, char *argv[]){
 
@@ -246,11 +237,11 @@ int main(int argc, char *argv[]){
             reverse(buff, BUFFER_SZ, user_str_len);
             break;
         
-        case 'x':
-            char target_word = argv[3];
-            char replacement_word = argv[4];
-            replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
-            break;
+        // case 'x': save for tomorrow
+        //     char *target_word = argv[3];
+        //     char *replacement_word = argv[4];
+        //     replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
+        //     break;
 
         default:
             usage(argv[0]);
@@ -270,3 +261,6 @@ int main(int argc, char *argv[]){
 //          the buff variable will have exactly 50 bytes?
 //  
 //          PLACE YOUR ANSWER HERE
+//          The length ensures that the functions do not exceed the amount of memory 
+//           that the buffer can hold. This safety practice ensures that no accidental 
+//           out-of-bound or segmentation core dump errors occur.
