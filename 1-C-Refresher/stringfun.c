@@ -21,8 +21,8 @@ void  reverse(char *, int, int);
 int setup_buff(char *buff, char *user_str, int len){
     //TODO: #4:  Implement the setup buff as per the directions
     
-    //checks for non-null pointers and empty strings
-    if (buff == NULL || user_str == NULL || *user_str == '\0'){
+    //checks for non-null pointers
+    if (buff == NULL || user_str == NULL){
         return -2;
     }
     //to count the amount of characters
@@ -30,20 +30,22 @@ int setup_buff(char *buff, char *user_str, int len){
     //to check if the space if duplicate
     int space = 1;
     while (*user_str != '\0'){
-        if (*user_str != ' ' && *user_str != '\t'){
+        if (*user_str != ' ' && *user_str != '\t' && *user_str != '\n'){
             *buff = *user_str;
+            str_len++;
+            buff++;
             space = 0;
         }
         else if (space == 0){
             *buff = ' ';
+            str_len++;
+            buff++;
             space = 1;
         }
-        buff++;
-        str_len++;
         user_str++;
     }
     //remove trailing spaces
-    while (str_len > 0 && (*(buff - 1) == ' ' || *(buff - 1) == '\t')) {
+    while (str_len > 0 && (*(buff - 1) == '\t' || *(buff - 1) == '\n' || *(buff - 1) == ' ')) {
         buff--;  
         str_len--;  
     }
@@ -51,10 +53,7 @@ int setup_buff(char *buff, char *user_str, int len){
     if (str_len > len){
         return -1;
     }
-    //user's string is just spaces or tabs
-    else if (str_len == 0){
-        return -2;
-    }    
+
     //store the original length of the words
     int original_len = str_len;
     //adds trailing dots to reach 50 characters
@@ -69,11 +68,13 @@ int setup_buff(char *buff, char *user_str, int len){
 }
 
 void print_buff(char *buff, int len){
-    printf("Buffer:  ");
+    printf("Buffer:  [");
     for (int i=0; i<len; i++){
         putchar(*(buff+i));
     }
+    printf("]");
     putchar('\n');
+    
 }
 
 void usage(char *exename){
@@ -125,7 +126,7 @@ void word_print(char *buff, int len, int str_len) {
         }
         //space indicates new word
         if (*(buff + i) == ' ') {  
-            printf("%d. %.*s (%d)\n", word_num, word_letters, word, word_letters);
+            printf("%d. %.*s(%d)\n", word_num, word_letters, word, word_letters);
             word_num++;
             word_letters = 0;  
         }
@@ -135,7 +136,8 @@ void word_print(char *buff, int len, int str_len) {
         }
     }
     //prints last word that is missed in the loop
-    printf("%d. %.*s (%d)\n", word_num, word_letters, word, word_letters);
+    printf("%d. %.*s(%d)\n", word_num, word_letters, word, word_letters);
+    printf("\nNumber of words returned: %d\n", word_num);
 }
 
 void reverse(char *buff, int len, int str_len){
@@ -237,11 +239,13 @@ int main(int argc, char *argv[]){
             reverse(buff, BUFFER_SZ, user_str_len);
             break;
         
-        // case 'x': save for tomorrow
-        //     char *target_word = argv[3];
-        //     char *replacement_word = argv[4];
-        //     replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
-        //     break;
+        case 'x': 
+           // char *target_word = argv[3];
+           // char *replacement_word = argv[4];
+           // replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
+            printf("Not Implemented!");
+            exit(3);
+            break;
 
         default:
             usage(argv[0]);
