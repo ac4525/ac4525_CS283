@@ -16,6 +16,7 @@ int  count_words(char *, int, int);
 void  word_print(char *, int, int);
 void  reverse(char *, int, int);
 void replace(char *, int, int, char *, char *);
+int isEmpty(char *);
 
 
 
@@ -27,18 +28,17 @@ int setup_buff(char *buff, char *user_str, int len){
     if (buff == NULL || user_str == NULL){
         return -2;
     }
-    //to count the amount of characters
-    int str_len = 0;
-    //to check if the space if duplicate
-    int space = 1;
+    int str_len = 0; //to count the amount of characters
+    int space = 1; //to check if the space if duplicate, starts at 1 to avoid leading spaces to be copied over to the buffer
+    //This while loop iterates through the entire string that the user inputs and transfers over characters
+    //and non-consecutive spaces
     while (*user_str != '\0'){
         if (*user_str != ' ' && *user_str != '\t' && *user_str != '\n'){
             *buff = *user_str;
             str_len++;
             buff++;
             space = 0;
-        }
-        else if (space == 0){
+        } else if (space == 0){
             *buff = ' ';
             str_len++;
             buff++;
@@ -46,27 +46,24 @@ int setup_buff(char *buff, char *user_str, int len){
         }
         user_str++;
     }
-    //remove trailing spaces
+    //This while loop removes trailing spaces in the buffer
     while (str_len > 0 && (*(buff - 1) == '\t' || *(buff - 1) == '\n' || *(buff - 1) == ' ')) {
         buff--;  
         str_len--;  
     }
-    //user's string is too long
+    //user's string is too long even after trimming spaces will cause an error
     if (str_len > len){
         return -1;
     }
-
-    //store the original length of the words
-    int original_len = str_len;
-    //adds trailing dots to reach 50 characters
+    int original_len = str_len; //store the original length of the words
+    //This while loop fills the remaining space of the buffer with dots
     while (str_len < len){
         *buff = '.';
         buff++;
         str_len++;
     }
-    //set null terminator
-    *(buff + str_len) = '\0';
-    return original_len; //for now just so the code compiles. 
+    *(buff + str_len) = '\0'; //set null terminator on buffer
+    return original_len; 
 }
 
 void print_buff(char *buff, int len){
@@ -85,26 +82,26 @@ void usage(char *exename){
 }
 
 int count_words(char *buff, int len, int str_len){
-    
     int words = 0;
     int characters;
     //ensure characters is not over the buffer amount
     if (str_len > len){
         characters = len;
-    } 
-    else {
+    } else {
         characters = str_len;
     }
-    //counts amount of spaces to correlate to number of words
+    //This for loop counts the amount of spaces in the buffer
     for (int i = 0; i < characters; i++) {
         if (*(buff + i) == ' ') {
             words++;
         }
-    }   
-    //extra word from counting spaces
-    return words + 1;
+    }
+    //adds an extra word number if the string is not empty
+    if (isEmpty(buff) == 0){
+        words++;
+    }
+    return words;
 }
-
 
 //ADD OTHER HELPER FUNCTIONS HERE FOR OTHER REQUIRED PROGRAM OPTIONS
 
@@ -112,109 +109,103 @@ void word_print(char *buff, int len, int str_len) {
     int characters;
     int word_num = 1;
     int word_letters = 0;
-    //to store each individual word
-    char *word = NULL;  
-    //ensure characters is not over the buffer amount
+    char *word = NULL;  //used to store each individual word
+    //ensure characters in the string are not over the allowed amount
     if (str_len > len) {
         characters = len;
     } else {
         characters = str_len;
     }
-    //iterates through entire buffer 
+    //This for loop iterates through the entire buffer and captures each word in a pointer
+    //The beginning of the pointer is reset each time a space is found, indicating the start of a new word
+    //It also counts the amount of letters in each word by checking whether or not the character is a space
     for (int i = 0; i < characters; i++) {
-        //every new word will reset the word pointer
         if (word_letters == 0) {
             word = buff + i;  
         }
-        //space indicates new word
         if (*(buff + i) == ' ') {  
             printf("%d. %.*s(%d)\n", word_num, word_letters, word, word_letters);
             word_num++;
             word_letters = 0;  
-        }
-        //counts letter of each word
-        else {
+        } else {
             word_letters++;
         }
     }
-    //prints last word that is missed in the loop
-    printf("%d. %.*s(%d)\n", word_num, word_letters, word, word_letters);
+    //prints the last word that is missed in the loop if the buffer is not empty
+    if (isEmpty(buff) == 0){
+        printf("%d. %.*s(%d)\n", word_num, word_letters, word, word_letters);
+    } else {
+        word_num-=1;
+    }
     printf("\nNumber of words returned: %d\n", word_num);
 }
 
 void reverse(char *buff, int len, int str_len){
     int characters;
-    //ensure characters is not over the buffer amount
+    //ensure characters in the string are not over the allowed amount
     if (str_len > len) {
         characters = len;
     } else {
         characters = str_len;
     }
-
-    //iterates half of the characters pointer to swap letters from front and back
+    //This for loop iterates through half of the characters in the buffer to swap the letters
+    //from front and back of the entire buffer. The front character is copied into a temporary
+    //variable, so that it can be used to be copied into the back character.
     for (int i = 0; i < characters/2; i++){
-        //temporary variable to store the front character
         char front = *(buff + i);
-        //swaps front and back characters
         *(buff + i) = *(buff + characters - i - 1);
         *(buff + characters - i - 1) = front;
     }
-    
 }
+
 void replace(char *buff, int len, int str_len, char *target, char *replace){
     int characters;
     int word_letters = 0;
-    //to store each individual word
-    char *word = NULL;
-    char *temp_tcounter = target;
-    char *temp_rcounter = replace;
+    char *word = NULL; //used to store each individual word
+    char *temp_tcounter = target; //used to count number of letters in the target word
+    char *temp_rcounter = replace; //same purpose as above, but for the replacement word
     int target_letters = 0;
     int replace_letters = 0;
-    int place_found = 0;
-    int found = 0;
+    int place_found = 0; //used to locate the index that the target was found at
+    int found = 0; //used to determine whether or not the target word was found inside the buffer
 
-    //this while loop is used to count the amount of letters in the target word
+    //This while loop is used to count the amount of letters in the target word
     while (*temp_tcounter != '\0'){
         temp_tcounter++;
         target_letters++;
     }
-    //this while loop is used to count amount of letters in the replacement word
+    //This while loop is used to count amount of letters in the replacement word
     while (*temp_rcounter != '\0'){
         temp_rcounter++;
         replace_letters++;
     }
-
-    //ensure characters is not over the buffer amount
+    //ensure characters in the string are not over the allowed amount
     if (str_len > len) {
         characters = len;
     } else {
         characters = str_len;
     }
     
-    //iterates through entire buffer 
+    //This for loop has the same logic as the one used in word_print, except instead of printing each word,
+    //each letter of every word is compared to the target word's letters. To prevent out-of-bound errors, 
+    //the words will only be compared when they have the same length of characters. The loop ends early
+    //when the target word is found.
     for (int i = 0; i < characters; i++) {
-        //every new word will reset the word pointer
         if (word_letters == 0) {
             word = buff + i;  
         }
-        //space indicates new word
         if (*(buff + i) == ' ' && (target_letters == word_letters)) {  
             for (int j = 0; j < word_letters; j++){
                 if (*(word+j) != *(target+j)){
                     found = 0;
-                }
-                else {
+                } else {
                     found = 1;
                 }
             }
-            
             word_letters = 0;  
-        }
-        else if (*(buff + i) == ' '){
+        } else if (*(buff + i) == ' '){
             word_letters = 0;
-        }
-        //counts letter of each word
-        else {
+        } else {
             word_letters++;
         }
         if (found == 1){
@@ -222,51 +213,75 @@ void replace(char *buff, int len, int str_len, char *target, char *replace){
         }
         place_found++;
     }
-
+    //checks for the comparison of the last word, which was missed in the previous for loop
     if (target_letters == word_letters){
         for (int j = 0; j < word_letters; j++){
             if (*(word+j) != *(target+j)){
                 found = 0;
-                }
-            else {
+            } else {
                 found = 1;
-                }
+            }
+        }
     }
-    }
-
+    //sets a new place found value if the target word is the last word in the buffer
+    //one is added rather than subtracted to stay consistent with the previous for loop value of place_found
+    //otherwises, an error message will showcase that the word is not found in the buffer
     if (found == 1 && place_found > characters){
         place_found = characters + 1;
-    } 
-    else if (found == 0){
+    } else if (found == 0){
         printf("Not Implemented!\n");
         exit(3);
     }
-
+    //The following conditional statements uses different approaches to replace the target letters with the replacement
+    //letters depending on whether the length of their string are equal, less, or greater than one another
     if (target_letters == replace_letters) {
+        //if both words have the same amount of letter, the following for loop directly
+        //converts the letters of the target word to the replacement word's letters.
         for (int i = 0; i < target_letters; i++){
             *(buff + place_found - target_letters + i) = *(replace + i);  
         }
     }
     else if (target_letters > replace_letters){
-        for (int i = 0; i < target_letters; i++){
+        //if the target word has more letters than the replacement word, the first loop will replace as much of the target
+        //word letters as possible with the replacement word letters. Then, the second for loop, will pad the remaining 
+        //letters with spaces.
+        for (int i = 0; i < replace_letters; i++){
             *(buff + place_found - target_letters + i) = *(replace + i);  
         }
-        for (int i = 0; i < replace_letters - target_letters; i++){
+        for (int i = 0; i < target_letters - replace_letters; i++){
             *(buff + place_found - target_letters + replace_letters + i) = ' ';
         }
+        //used to finalize the buffer by removing the padding of spaces
         setup_buff(buff, buff, len);     
     }
     else {
+        //if the target word has less letters than the replacement word, every letter after the target word
+        //will be shifted to the right by the difference of the two words. The first for loop shifts every letter 
+        //in the buffer, starting from the last index to avoid the need of a temporary variable to hold the letter.
+        //After every letter is shifted, the second for loop will replace the target letters with the replacement letters.
         int shift_amount = replace_letters - target_letters;
         for (int i = characters - 1; i >= place_found; i--) {
             *(buff + i + shift_amount) = *(buff + i);
             }
-        
         for (int i = 0; i < replace_letters; i++) {
             *(buff + place_found - target_letters + i) = *(replace + i);
         }
+        //truncate letters that exceed the buffer limit
+        if (characters + shift_amount > len){
+            *(buff + characters) = '\0';
+        }
     }
+}
 
+//function made to reduce repition in figuring out if an empty string was inputted by the user
+int isEmpty(char *buff){
+    while (*buff != '\0'){
+        if (*buff != '.'){
+            return 0;
+        }
+        buff++;
+    }
+    return 1;
 }
 
 int main(int argc, char *argv[]){
@@ -348,6 +363,10 @@ int main(int argc, char *argv[]){
             break;
         
         case 'x': 
+            if (argc < 5){
+                usage(argv[0]);
+                exit(1);
+            }
             char *target_word = argv[3];
             char *replacement_word = argv[4];
             replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
