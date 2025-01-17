@@ -11,11 +11,13 @@ void print_buff(char *, int);
 int  setup_buff(char *, char *, int);
 
 //prototypes for functions to handle required functionality
+//add additional prototypes here
 int  count_words(char *, int, int);
 void  word_print(char *, int, int);
 void  reverse(char *, int, int);
-// void replace(char *, int, int, char *, char *); save for tomorrow
-//add additional prototypes here
+void replace(char *, int, int, char *, char *);
+
+
 
 
 int setup_buff(char *buff, char *user_str, int len){
@@ -159,7 +161,113 @@ void reverse(char *buff, int len, int str_len){
     }
     
 }
+void replace(char *buff, int len, int str_len, char *target, char *replace){
+    int characters;
+    int word_letters = 0;
+    //to store each individual word
+    char *word = NULL;
+    char *temp_tcounter = target;
+    char *temp_rcounter = replace;
+    int target_letters = 0;
+    int replace_letters = 0;
+    int place_found = 0;
+    int found = 0;
 
+    //this while loop is used to count the amount of letters in the target word
+    while (*temp_tcounter != '\0'){
+        temp_tcounter++;
+        target_letters++;
+    }
+    //this while loop is used to count amount of letters in the replacement word
+    while (*temp_rcounter != '\0'){
+        temp_rcounter++;
+        replace_letters++;
+    }
+
+    //ensure characters is not over the buffer amount
+    if (str_len > len) {
+        characters = len;
+    } else {
+        characters = str_len;
+    }
+    
+    //iterates through entire buffer 
+    for (int i = 0; i < characters; i++) {
+        //every new word will reset the word pointer
+        if (word_letters == 0) {
+            word = buff + i;  
+        }
+        //space indicates new word
+        if (*(buff + i) == ' ' && (target_letters == word_letters)) {  
+            for (int j = 0; j < word_letters; j++){
+                if (*(word+j) != *(target+j)){
+                    found = 0;
+                }
+                else {
+                    found = 1;
+                }
+            }
+            
+            word_letters = 0;  
+        }
+        else if (*(buff + i) == ' '){
+            word_letters = 0;
+        }
+        //counts letter of each word
+        else {
+            word_letters++;
+        }
+        if (found == 1){
+            break;
+        }
+        place_found++;
+    }
+
+    if (target_letters == word_letters){
+        for (int j = 0; j < word_letters; j++){
+            if (*(word+j) != *(target+j)){
+                found = 0;
+                }
+            else {
+                found = 1;
+                }
+    }
+    }
+
+    if (found == 1 && place_found > characters){
+        place_found = characters + 1;
+    } 
+    else if (found == 0){
+        printf("Not Implemented!\n");
+        exit(3);
+    }
+
+    if (target_letters == replace_letters) {
+        for (int i = 0; i < target_letters; i++){
+            *(buff + place_found - target_letters + i) = *(replace + i);  
+        }
+    }
+    else if (target_letters > replace_letters){
+        for (int i = 0; i < target_letters; i++){
+            *(buff + place_found - target_letters + i) = *(replace + i);  
+        }
+        for (int i = 0; i < replace_letters - target_letters; i++){
+            *(buff + place_found - target_letters + replace_letters + i) = ' ';
+        }
+        setup_buff(buff, buff, len);     
+    }
+    else {
+        int shift_amount = replace_letters - target_letters;
+        for (int i = characters - 1; i >= place_found; i--) {
+            *(buff + i + shift_amount) = *(buff + i);
+            }
+        
+        for (int i = 0; i < replace_letters; i++) {
+            *(buff + place_found - target_letters + i) = *(replace + i);
+        }
+    }
+
+}
 
 int main(int argc, char *argv[]){
 
@@ -240,11 +348,9 @@ int main(int argc, char *argv[]){
             break;
         
         case 'x': 
-           // char *target_word = argv[3];
-           // char *replacement_word = argv[4];
-           // replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
-            printf("Not Implemented!");
-            exit(3);
+            char *target_word = argv[3];
+            char *replacement_word = argv[4];
+            replace(buff, BUFFER_SZ, user_str_len, target_word, replacement_word);
             break;
 
         default:
