@@ -94,8 +94,44 @@ int get_student(int fd, int id, student_t *s)
 int add_student(int fd, int id, char *fname, char *lname, int gpa)
 {
     // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    if (validate_range(id, gpa) != 0){
+        printf(M_ERR_STD_RNG);
+        return ERR_DB_OP;
+    }
+    student_t student = EMPTY_STUDENT_RECORD;
+    int offset = (id * STUDENT_RECORD_SIZE) - STUDENT_RECORD_SIZE;
+
+    if (lseek(fd, offset, SEEK_SET) == -1){
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    if (read(fd, &student, STUDENT_RECORD_SIZE) == -1) {
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+
+    if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0){
+        printf(M_ERR_DB_ADD_DUP, student.id);
+        return ERR_DB_OP;
+    }
+
+    student.id = id;
+    student.gpa = gpa;
+    strncpy(student.fname, fname, sizeof(student.fname) - 1);
+    student.fname[sizeof(student.fname) - 1] ='\0';
+    strncpy(student.lname, lname, sizeof(student.lname) - 1);
+    student.lname[sizeof(student.lname) - 1] ='\0';
+    
+    if (lseek(fd, offset, SEEK_SET) == -1){
+        printf(M_ERR_DB_READ);
+        return ERR_DB_FILE;
+    }
+    if (write(fd, &student, STUDENT_RECORD_SIZE) != STUDENT_RECORD_SIZE) {
+        printf(M_ERR_DB_WRITE);
+        return ERR_DB_FILE;
+    }
+    printf(M_STD_ADDED, student.id);
+    return NO_ERROR;
 }
 
 /*
@@ -193,9 +229,28 @@ int count_db_records(int fd)
  */
 int print_db(int fd)
 {
-    // TODO
-    printf(M_NOT_IMPL);
-    return NOT_IMPLEMENTED_YET;
+    student_t student = EMPTY_STUDENT_RECORD;
+    int read_size = sizeof(student_t);
+
+    printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
+
+    while (1) {
+        ssize_t s_read = read(fd, &student, read_size);
+        
+        if (s_read == 0) {
+            break;
+        } else if (s_read  == -1) {
+            printf(M_ERR_DB_READ);
+            return ERR_DB_FILE;
+        }
+
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+            float gpa = student.gpa / 100.0;
+            printf(STUDENT_PRINT_FMT_STRING, student.id, student.fname, student.lname, gpa);
+        }
+    }
+
+    return NO_ERROR;
 }
 
 /*
