@@ -62,7 +62,8 @@ int open_db(char *dbFile, bool should_truncate)
  */
 int get_student(int fd, int id, student_t *s){
     // TODO
-    student_t student = EMPTY_STUDENT_RECORD;
+    student_t student = EMPTY_STUDENT_RECORD; //initialize empty student structure
+    //This while loops reads through the entire data base to compare each student's id with the targeted one
     while (1) {
         ssize_t s_read = read(fd, &student, STUDENT_RECORD_SIZE);
         if (s_read == 0) {
@@ -110,9 +111,11 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
         printf(M_ERR_STD_RNG);
         return ERR_DB_OP;
     }
-    student_t student = EMPTY_STUDENT_RECORD;
-    int offset = id * STUDENT_RECORD_SIZE;
+    
+    student_t student = EMPTY_STUDENT_RECORD; 
+    int offset = id * STUDENT_RECORD_SIZE; //offset to ensure data is placed or read in the right location
 
+    //sets correct position of pointer to prepare reading database
     if (lseek(fd, offset, SEEK_SET) == -1){
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
@@ -121,7 +124,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
     }
-
+    //checks for duplicate student by comparing the student to an empty student
     if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0){
         printf(M_ERR_DB_ADD_DUP, student.id);
         return ERR_DB_OP;
@@ -133,7 +136,8 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     student.fname[sizeof(student.fname) - 1] ='\0';
     strncpy(student.lname, lname, sizeof(student.lname) - 1);
     student.lname[sizeof(student.lname) - 1] ='\0';
-    
+
+    //sets correct position of pointer to prepare writing into database
     if (lseek(fd, offset, SEEK_SET) == -1){
         printf(M_ERR_DB_READ);
         return ERR_DB_FILE;
@@ -171,9 +175,11 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
 int del_student(int fd, int id){
     // TODO
     student_t student = EMPTY_STUDENT_RECORD;
+    
+    //checks if student exists and where
     int findStudent = get_student(fd, id, &student);
     if (findStudent == NO_ERROR){
-            int offset = id * STUDENT_RECORD_SIZE;
+        int offset = id * STUDENT_RECORD_SIZE;
 
         if (lseek(fd, offset, SEEK_SET) == -1){
             printf(M_ERR_DB_READ);
@@ -183,7 +189,10 @@ int del_student(int fd, int id){
             printf(M_ERR_DB_READ);
             return ERR_DB_FILE;
         }
+        
+        //erases the student record by setting it to an empty student
         student = EMPTY_STUDENT_RECORD;
+        
         if (lseek(fd, offset, SEEK_SET) == -1){
             printf(M_ERR_DB_READ);
             return ERR_DB_FILE;
@@ -230,18 +239,17 @@ int del_student(int fd, int id){
 int count_db_records(int fd) {
     // TODO
     student_t student = EMPTY_STUDENT_RECORD;
-    int records = 0;
+    int records = 0; //used to keep track of students in the database
 
+    //This while loops reads through the entire data base to count each non-empty student
     while (1) {
         ssize_t s_read = read(fd, &student, STUDENT_RECORD_SIZE);
-        
         if (s_read == 0) {
             break;
         } else if (s_read  == -1) {
             printf(M_ERR_DB_READ);
             return ERR_DB_FILE;
         }
-
         if (memcmp(&student, &EMPTY_STUDENT_RECORD, STUDENT_RECORD_SIZE) != 0) {
             records++;
         }
@@ -291,8 +299,8 @@ int count_db_records(int fd) {
 int print_db(int fd)
 {
     student_t student = EMPTY_STUDENT_RECORD;
-    int empty = 0;
-
+    int empty = 0; //used to check if header should be printed in the scenario that database is not empty
+    //This while loops reads through the entire data base to print each non-empty student's information
     while (1) {
         ssize_t s_read = read(fd, &student, STUDENT_RECORD_SIZE);
         
@@ -348,6 +356,7 @@ int print_db(int fd)
  *
  */
 void print_student(student_t *s){
+    //checks for null student and nonzero id
     if (s == NULL || s->id == 0){
         printf(M_ERR_STD_PRINT);
     } else {
