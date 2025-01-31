@@ -106,7 +106,7 @@ Please answer the following questions and submit in your repo for the second ass
 
     -   Why did the total storage used on the disk remain unchanged when we added the student with ID=1, ID=3, and ID=63, but increased from 4K to 8K when we added the student with ID=64? 
 
-        > **ANSWER:** The total storage used on the disk remained unchanged when the first three students were added because 4k (one block of memory) was enough space to hold them the 3 students. However, adding another student with ID=64 the space to exceed one block of memory, which caused the increase from 4k to 8k.
+        > **ANSWER:** The total storage used on the disk remained unchanged when the first three students were added because 4k (one block of memory) was enough space to hold the 3 students. However, adding another student with ID=64 caused the memory to exceed one block of memory, which caused the increase from 4k to 8k.
 
     - Now lets add one more student with a large student ID number  and see what happens:
 
