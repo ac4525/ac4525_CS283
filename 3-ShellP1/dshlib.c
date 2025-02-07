@@ -32,8 +32,52 @@
  *  Standard Library Functions You Might Want To Consider Using
  *      memset(), strcmp(), strcpy(), strtok(), strlen(), strchr()
  */
-int build_cmd_list(char *cmd_line, command_list_t *clist)
-{
-    printf(M_NOT_IMPL);
-    return EXIT_NOT_IMPL;
+int build_cmd_list(char *cmd_line, command_list_t *clist){
+    
+    char *cmd = strtok(cmd_line, PIPE_STRING); //separates the user's command by pipe if possible
+    int commands = 0; //used to keep track of the amount of commands parsed
+
+    memset(clist, 0, sizeof(command_list_t));  //clears list
+
+    //This while loop iterates through all the commands separated by a pipe if there is one
+    while (cmd != NULL) {
+        if (commands >= CMD_MAX) {
+            return ERR_TOO_MANY_COMMANDS;
+        }
+
+        //removes leading spaces by changing the pointer start position
+        while (*cmd == ' ') {
+            cmd++;
+        }
+
+        //removes trailing spaces by starting at the end of the command and changing the end pointer position
+        char *end = cmd + strlen(cmd) - 1;
+        while (end > cmd && *end == ' ') {
+            end--;
+        }
+        *(end + 1) = '\0';
+
+        //finds first space to indicate everything after it to be the arguments to the executable name
+        char *space = strchr(cmd, SPACE_CHAR);
+
+        if (space != NULL) {
+            //ensures that argument and executable name are within the maximum length
+            if (space - cmd > EXE_MAX || strlen(space + 1) > ARG_MAX){
+                return ERR_CMD_OR_ARGS_TOO_BIG;
+            }
+            //
+            strncpy(clist->commands[commands].exe, cmd, space - cmd);
+            strncpy(clist->commands[commands].args, space + 1, strlen(space + 1));
+        } else {
+            if (strlen(cmd) > EXE_MAX){
+                return ERR_CMD_OR_ARGS_TOO_BIG;
+            }
+            strcpy(clist->commands[commands].exe, cmd);
+        }
+
+        commands++;
+        cmd = strtok(NULL, PIPE_STRING); //iterates to next command separated by pipes
+    }
+    clist->num = commands;
+    return OK;
 }
