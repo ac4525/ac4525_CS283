@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include "dshlib.h"
+#include <errno.h>
 
 /*
  * Implement your exec_local_cmd_loop function by building a loop that prompts the 
@@ -51,21 +52,159 @@
  *  Standard Library Functions You Might Want To Consider Using (assignment 2+)
  *      fork(), execvp(), exit(), chdir()
  */
-int exec_local_cmd_loop()
-{
-    char *cmd_buff;
-    int rc = 0;
-    cmd_buff_t cmd;
+int exec_local_cmd_loop() {
+    cmd_buff_t cmd_buff;
+    int exit_num = 0;
 
-    // TODO IMPLEMENT MAIN LOOP
+    //allocate memory for the command buffer
+    cmd_buff._cmd_buffer = malloc(SH_CMD_MAX * sizeof(char));
+    if (cmd_buff._cmd_buffer == NULL) {
+        printf("Error: Memory allocation failed\n");
+        return ERR_MEMORY;
+    }
 
-    // TODO IMPLEMENT parsing input to cmd_buff_t *cmd_buff
+    while (1) {
+        printf("%s", SH_PROMPT);
 
-    // TODO IMPLEMENT if built-in command, execute builtin logic for exit, cd (extra credit: dragon)
-    // the cd command should chdir to the provided directory; if no directory is provided, do nothing
+        if (fgets(cmd_buff._cmd_buffer, SH_CMD_MAX, stdin) == NULL) {
+            printf("\n");
+            break;
+        }
 
-    // TODO IMPLEMENT if not built-in command, fork/exec as an external command
-    // for example, if the user input is "ls -l", you would fork/exec the command "ls" with the arg "-l"
+        //remove the trailing \n from cmd_buff
+        cmd_buff._cmd_buffer[strcspn(cmd_buff._cmd_buffer, "\n")] = '\0';    
 
+        cmd_buff.argc = 0;
+        char *start = cmd_buff._cmd_buffer;
+        char *current = start;
+        
+        //This while loop parses the command by spaces, while maintaining all the content in quotations as one argument
+        while (*current != '\0') {
+            //skip leading spaces of current pointer
+            while (*current == SPACE_CHAR || *current == '\t') {
+                current++;
+            }
+            if (*current == '\0' || cmd_buff.argc >= CMD_MAX) {
+                break;
+            }
+        
+            //if there are quotes, capture everything inside the quote as the argument
+            if (*current == QUOTE_CHAR) {
+                current++;
+                start = current;  
+                while (*current != QUOTE_CHAR && *current != '\0') {
+                    current++;
+                }
+                //move past the quote for the next argument
+                if (*current == QUOTE_CHAR) {
+                    *current = '\0';  
+                    current++;       
+                } else {
+                    printf("Error: Mismatched quotes\n");
+                    exit(ERR_EXEC_CMD);
+                }
+            } else {
+                //non quotes will be normally parse with spaces or tabs
+                start = current;
+                while (*current != SPACE_CHAR && *current != '\t' && *current != '\0') {
+                    current++;
+                }
+                if (*current != '\0') {
+                    *current = '\0';  
+                    current++;       
+                }
+            }
+        
+            cmd_buff.argv[cmd_buff.argc++] = start;
+        
+            if (cmd_buff.argc >= CMD_MAX) {
+                break;
+            }
+        }
+        
+        cmd_buff.argv[cmd_buff.argc] = NULL;
+        
+        if (cmd_buff.argc == CMD_MAX){
+            printf("Too many arguments\n");
+            continue;
+        }
+        
+        //exits program if user types the exit command
+        if (strcmp(cmd_buff._cmd_buffer, EXIT_CMD) == 0) {
+            free(cmd_buff._cmd_buffer);
+            exit(OK);
+        }
+    
+        //prints dragon if user types the dragon command
+        if (strcmp(cmd_buff._cmd_buffer, "dragon") == 0) {
+            print_dragon();
+            continue;
+        }
+    
+        //checks for non-empty command
+        if (strlen(cmd_buff._cmd_buffer) == 0) {
+            printf(CMD_WARN_NO_CMD);
+            continue;
+        }
+
+        //executes cd command if user types the cd command
+        if (strcmp(cmd_buff.argv[0], "cd") == 0){
+            if (cmd_buff.argc == 2){
+                if (chdir(cmd_buff.argv[1]) != 0) {
+                    printf("%s Directory does not exist\n", cmd_buff.argv[1]);
+                    exit_num = ENOTDIR;
+                }
+            }
+            continue;
+        }
+
+        if (strcmp(cmd_buff.argv[0], "rc") == 0){
+            printf("%d\n", exit_num);
+            continue;
+        }
+       
+        // Fork a process to execute the command
+        int f_result, c_result; 
+        f_result = fork();
+        if (f_result < 0) {
+            exit_num = errno;
+            exit(errno);
+        }
+        if (f_result == 0) {  // Child process
+            int rc = execvp(cmd_buff.argv[0], cmd_buff.argv);
+            
+            if (rc < 0){
+                if (errno == ENOENT) {
+                    printf("Command not found\n");
+                } else if (errno == EACCES) {
+                    printf("Permission denied\n");
+                } else if (errno == ENOTDIR) {
+                    printf("Not a directory\n");
+                }else if (errno == EISDIR) {
+                    printf("Cannot execute directory\n");
+                } else if (errno == ENOEXEC) {
+                    printf("Cannot execute invalid format\n");
+                }
+                else {
+                    printf("Command cannot be executed\n");
+                }
+                exit(errno); 
+            }
+        } else {  // Parent process
+            wait(&c_result);
+    
+            //macro in the runtime library to extract
+            //the status code from what wait_returns
+            if (WEXITSTATUS(c_result) == 0){
+                continue;
+            } else {
+                exit_num = WEXITSTATUS(c_result);
+                continue;
+            }
+        
+        }
+    }
+
+    free(cmd_buff._cmd_buffer);
     return OK;
 }

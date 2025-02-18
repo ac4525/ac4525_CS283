@@ -32,6 +32,8 @@ typedef struct command{
 #define SPACE_CHAR  ' '
 #define PIPE_CHAR   '|'
 #define PIPE_STRING "|"
+#define SPACE_STRING " "
+#define QUOTE_CHAR  '"'
 
 #define SH_PROMPT "dsh2> "
 #define EXIT_CMD "exit"
@@ -68,12 +70,13 @@ Built_In_Cmds exec_built_in_cmd(cmd_buff_t *cmd);
 int exec_local_cmd_loop();
 int exec_cmd(cmd_buff_t *cmd);
 
-
+extern void print_dragon();
 
 
 //output constants
 #define CMD_OK_HEADER       "PARSED COMMAND LINE - TOTAL COMMANDS %d\n"
 #define CMD_WARN_NO_CMD     "warning: no commands provided\n"
 #define CMD_ERR_PIPE_LIMIT  "error: piping limited to %d commands\n"
+#define CMD_ERR_EXECUTE     "error: %s fork failed\n"
 
 #endif
