@@ -62,7 +62,7 @@ int exec_local_cmd_loop() {
         printf("Error: Memory allocation failed\n");
         return ERR_MEMORY;
     }
-
+ 
     while (1) {
         printf("%s", SH_PROMPT);
 
@@ -70,24 +70,28 @@ int exec_local_cmd_loop() {
             printf("\n");
             break;
         }
-
+        
         //remove the trailing \n from cmd_buff
         cmd_buff._cmd_buffer[strcspn(cmd_buff._cmd_buffer, "\n")] = '\0';    
-
+        
         cmd_buff.argc = 0;
         char *start = cmd_buff._cmd_buffer;
         char *current = start;
-        
+
         //This while loop parses the command by spaces, while maintaining all the content in quotations as one argument
         while (*current != '\0') {
+            
             //skip leading spaces of current pointer
             while (*current == SPACE_CHAR || *current == '\t') {
+                if (*current == '\0') {
+                    break;  
+                }
                 current++;
             }
             if (*current == '\0' || cmd_buff.argc >= CMD_MAX) {
                 break;
             }
-        
+            
             //if there are quotes, capture everything inside the quote as the argument
             if (*current == QUOTE_CHAR) {
                 current++;
@@ -105,6 +109,7 @@ int exec_local_cmd_loop() {
                 }
             } else {
                 //non quotes will be normally parse with spaces or tabs
+    
                 start = current;
                 while (*current != SPACE_CHAR && *current != '\t' && *current != '\0') {
                     current++;
@@ -121,31 +126,37 @@ int exec_local_cmd_loop() {
                 break;
             }
         }
-        
+
         cmd_buff.argv[cmd_buff.argc] = NULL;
+
+        //checks for non-empty command
+        if (cmd_buff.argc == 0) {
+            printf(CMD_WARN_NO_CMD); 
+            exit_num = WARN_NO_CMDS;
+            continue;
+        }
         
+        //checks for commands with too many arguments
         if (cmd_buff.argc == CMD_MAX){
-            printf("Too many arguments\n");
+            printf("too many arguments\n");
+            exit_num = ERR_TOO_MANY_COMMANDS;
             continue;
         }
         
         //exits program if user types the exit command
-        if (strcmp(cmd_buff._cmd_buffer, EXIT_CMD) == 0) {
+        if (strcmp(cmd_buff._cmd_buffer, EXIT_CMD) == 0 && cmd_buff.argc == 1) {
             free(cmd_buff._cmd_buffer);
+            exit_num = 0;
             exit(OK);
         }
     
         //prints dragon if user types the dragon command
-        if (strcmp(cmd_buff._cmd_buffer, "dragon") == 0) {
+        if (strcmp(cmd_buff._cmd_buffer, "dragon") == 0 && cmd_buff.argc == 1) {
             print_dragon();
+            exit_num = 0;
             continue;
         }
     
-        //checks for non-empty command
-        if (strlen(cmd_buff._cmd_buffer) == 0) {
-            printf(CMD_WARN_NO_CMD);
-            continue;
-        }
 
         //executes cd command if user types the cd command
         if (strcmp(cmd_buff.argv[0], "cd") == 0){
@@ -153,11 +164,17 @@ int exec_local_cmd_loop() {
                 if (chdir(cmd_buff.argv[1]) != 0) {
                     printf("%s Directory does not exist\n", cmd_buff.argv[1]);
                     exit_num = ENOTDIR;
+                    continue;
                 }
+                exit_num = 0;
+            } else if (cmd_buff.argc > 2){
+                printf("too many arguments");
+                exit_num = ERR_TOO_MANY_COMMANDS;
             }
             continue;
         }
 
+        //prints return code of most recent command, excluding rc itself
         if (strcmp(cmd_buff.argv[0], "rc") == 0){
             printf("%d\n", exit_num);
             continue;
@@ -195,10 +212,10 @@ int exec_local_cmd_loop() {
     
             //macro in the runtime library to extract
             //the status code from what wait_returns
+            exit_num = WEXITSTATUS(c_result);
             if (WEXITSTATUS(c_result) == 0){
                 continue;
             } else {
-                exit_num = WEXITSTATUS(c_result);
                 continue;
             }
         
@@ -206,5 +223,5 @@ int exec_local_cmd_loop() {
     }
 
     free(cmd_buff._cmd_buffer);
-    return OK;
+    return exit_num;
 }
