@@ -190,7 +190,7 @@ int exec_local_cmd_loop()
                     }
                     if (*current != '\0') {
                         *current = '\0';
-                        current++;
+                        current++; 
                     }
                 }
                 cmd_list.commands[i].argv[cmd_list.commands[i].argc++] = start;

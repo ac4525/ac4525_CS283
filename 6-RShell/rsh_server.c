@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <fcntl.h>
+#include <errno.h>
 
 //INCLUDES for extra credit
 //#include <signal.h>
@@ -49,6 +50,12 @@
 int start_server(char *ifaces, int port, int is_threaded){
     int svr_socket;
     int rc;
+    
+    //to remove warning for unused extra credit
+    is_threaded = 0;
+    if (is_threaded == 0){
+        rc = 0;
+    }
 
     //
     //TODO:  If you are implementing the extra credit, please add logic
@@ -115,7 +122,40 @@ int stop_server(int svr_socket){
  * 
  */
 int boot_server(char *ifaces, int port){
-    return WARN_RDSH_NOT_IMPL;
+    
+    //makes the server socket
+    int svr_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr_socket == -1){
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    int enable=1;
+    setsockopt(svr_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+
+    //initializes the sockaddr_in structure to specify the server address details
+    struct sockaddr_in s_address;
+    s_address.sin_family = AF_INET;
+    s_address.sin_port = htons(port);
+    if (inet_pton(AF_INET, ifaces, &s_address.sin_addr) <= 0) {
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+   
+    //bind the server to the port and interface
+    if (bind(svr_socket, (struct sockaddr *)&s_address, sizeof(s_address)) == -1) {
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    //allows the server to receive connections
+    if (listen(svr_socket, 5) == -1) {
+        close(svr_socket);
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    printf("Server is listening on %s:%d\n", ifaces, port);
+
+    return svr_socket;
 }
 
 /*
@@ -160,7 +200,37 @@ int boot_server(char *ifaces, int port){
  * 
  */
 int process_cli_requests(int svr_socket){
-    return WARN_RDSH_NOT_IMPL;
+    
+    int client_socket; //used to accept a client socket connection
+    struct sockaddr_in c_address;
+    socklen_t client_len = sizeof(c_address);
+    char *buffer = (char *)malloc(RDSH_COMM_BUFF_SZ);  //Allocate buffer for communication
+
+    if (!buffer) {
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    while (1) {
+        //accepts a client socket connection
+        client_socket = accept(svr_socket, (struct sockaddr *)&c_address, &client_len);
+        if (client_socket < 0) {
+            free(buffer);
+            return ERR_RDSH_COMMUNICATION;
+        }
+
+        //executes a client's command requests until they choose to exit or stop the server
+        int rc = exec_client_requests(client_socket);
+        close(client_socket);
+        if (rc < 0) {
+            printf(RCMD_SERVER_EXITED);
+            break;
+        }
+    }
+
+    free(buffer);
+    stop_server(svr_socket);
+    
+    return OK_EXIT;
 }
 
 /*
@@ -205,7 +275,185 @@ int process_cli_requests(int svr_socket){
  *                or receive errors. 
  */
 int exec_client_requests(int cli_socket) {
-    return WARN_RDSH_NOT_IMPL;
+
+    char *io_buff = malloc(RDSH_COMM_BUFF_SZ); //allocate enough space for io_buff
+    if (io_buff == NULL) {
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    int bytes_received;
+    //creates a command list structure to store all the posible commands that the user entered if separated by pipes
+    command_list_t *cmd_list;
+    cmd_list = malloc(sizeof(command_list_t));
+    cmd_list->commands[0]._cmd_buffer = malloc(SH_CMD_MAX * sizeof(char));
+    cmd_list->commands[0]._cmd_buffer[strcspn(cmd_list->commands[0]._cmd_buffer, "\n")] = '\0';
+
+    //This while loop continues to process client requests or commands until they end the connection
+    while (1) {
+        
+        //receive information from the client socket
+        bytes_received = recv(cli_socket, io_buff, RDSH_COMM_BUFF_SZ, 0);
+        
+        if (bytes_received == -1) {
+            free(io_buff);  
+            return ERR_RDSH_COMMUNICATION;
+        } else if (bytes_received == 0) {
+            break;
+        }
+        
+        io_buff[bytes_received] = '\0'; //null terminate the client socket information
+
+        //checks if the command received is exit, which will close the client connection
+        if (rsh_match_command(io_buff) == BI_CMD_EXIT) {
+            send_message_eof(cli_socket);  
+            free(io_buff);  
+            return OK;
+        //checks if the command received is stop-server, which will close both the client and server connection
+        } else if (rsh_match_command(io_buff) == BI_CMD_STOP_SVR)  {
+            send_message_eof(cli_socket);  
+            free(io_buff); 
+            return OK_EXIT;
+        } 
+        else {
+            
+            //checks if the command starts or ends with a pipe, which is invalid
+            if ((strncmp(io_buff, PIPE_STRING, 1) == 0) || (strncmp(io_buff + strlen(io_buff) - 1, PIPE_STRING, 1) == 0)){
+                send_message_string(cli_socket, "Command cannot start or end with pipes\n");
+                continue;
+            }
+
+            //initializes the amount of commands to be zero
+            cmd_list->num = 0;
+            
+            //split input using pipe symbol 
+            char *cmd = strtok(io_buff, PIPE_STRING);
+            int invalid_command = 0; 
+            int valid = 0; 
+
+            //This while loop stores commands split by pipes
+            while (cmd != NULL && cmd_list->num < CMD_MAX) {
+                while (*cmd == SPACE_CHAR || *cmd == '\t') cmd++;  
+                if (*cmd == '\0' || strlen(cmd) == 0) {
+                    invalid_command = 1;  
+                }
+                //printf("Unparsed: %s\n", cmd);
+                
+                //parses each command separated by pipes
+                valid = parse_command(cmd, cmd_list);  
+                
+                //printf("size: %d\n", cmd_list->commands[cmd_list->num].argc);
+
+                //if too many arguments are entered, an error statement will print
+                if (valid  == 1){
+                    send_message_string(cli_socket, "Too many arguments\n");
+                    break;
+                } else if (valid == 2){
+                    send_message_string(cli_socket, "Error: Mismatched quotes\n");
+                    break;
+                }
+            
+                //printf("Parsed arguments for command: %s\n", cmd);
+                //printf("1st argo: %s\n", cmd_list->commands[cmd_list->num].argv[1]);
+
+                //keeps track of number of commands 
+                cmd_list->num++;
+                cmd = strtok(NULL, PIPE_STRING);
+            }
+            
+            //skip the rest of the while loop if an invalid command is used
+            if (valid == 1){
+                continue;
+            } else if (valid == 2){
+                continue;
+            }
+        
+            //checks for empty strings
+            if (invalid_command == 1 || cmd_list->num == 0) {
+                send_message_string(cli_socket, CMD_WARN_NO_CMD);
+                continue;
+            }
+
+            //check if too many pipes are used
+            if (cmd_list->num >= CMD_MAX) {
+                send_message_string(cli_socket, "error: piping limited to 8 commands\n");
+                continue;
+            }
+            //executes the client's commands
+            rsh_execute_pipeline(cli_socket, cmd_list);
+        }
+
+        send_message_eof(cli_socket);
+    }
+    free(cmd_list->commands[0]._cmd_buffer);
+    free(cmd_list);
+    free(io_buff); 
+    
+    return ERR_RDSH_COMMUNICATION;
+}
+
+int parse_command(char *cmd, command_list_t *cmd_list) {
+    char *current = cmd;
+    char *start = current;
+    cmd_buff_t *cmd_buff = &cmd_list->commands[cmd_list->num];
+
+    cmd_buff->argc = 0;
+    cmd_buff->_cmd_buffer = cmd;
+    
+    //skip leading spaces
+    while (*current == SPACE_CHAR || *current == '\t') {
+        current++;
+    }
+
+    while (*current != '\0') {
+        //skip leading spaces of current pointer
+        while (*current == SPACE_CHAR || *current == '\t') {
+            current++;
+        }
+        if (*current == '\0' || cmd_buff->argc >= CMD_ARGV_MAX) {
+            break;
+        }
+        //if there are quotes, capture everything inside the quote as the argument
+        if (*current == QUOTE_CHAR) {
+            current++; 
+            start = current;
+
+            while (*current != QUOTE_CHAR  && *current != '\0') {
+                current++;
+            }
+
+            //move past the quote for the next argument
+            if (*current == QUOTE_CHAR) {
+                *current = '\0';
+                current++; 
+            } else {
+                return 2;
+            }
+        } else {
+            //non quotes will be normally parse with spaces or tabs
+            start = current;
+            while (*current != SPACE_CHAR && *current != '\t' && *current != '\0') {
+                current++;
+            }
+            if (*current != '\0') {
+                *current = '\0'; 
+                current++;
+            }
+        }
+
+        //store the argument in the command's argv array
+        cmd_buff->argv[cmd_buff->argc++] = start;
+
+        //skip over any trailing spaces or tabs for the next loop
+        while (*current == SPACE_CHAR || *current == '\t') {
+            current++;
+        }
+    }
+    if (cmd_buff->argc > 8){
+        return 1;
+    }
+    // Null-terminate the argv array
+    cmd_buff->argv[cmd_buff->argc] = NULL;
+    return OK;
 }
 
 /*
@@ -223,7 +471,30 @@ int exec_client_requests(int cli_socket) {
  *           we were unable to send the EOF character. 
  */
 int send_message_eof(int cli_socket){
-    return WARN_RDSH_NOT_IMPL;
+    int bytes_sent;
+
+    //send one character, the EOF character.
+    bytes_sent = send(cli_socket, &RDSH_EOF_CHAR, 1, 0);
+    if (bytes_sent == 1){
+        //this is what is expected, we sent a single character,
+        //the EOF character, so we can return a good error code.
+        //we use OK for this as defined in dshlib.h
+        return OK;
+    }
+    
+
+    //handle error and send back an appropriate error code
+    //if bytes_sent < 0 that would indicate a network error
+    //if it equals zero it indicates the character could not
+    //be sent, which is also an error.  I could not imagine a
+    //situation where bytes_sent > 1 since we told send to 
+    //send exactly one byte, but if this happens it would also
+    //be an error.
+
+    //Ill just return a generic COMMUNICATION error we defined
+    //for you in rshlib.h, but you can return different error
+    //codes for different conditions if you want. 
+    return ERR_RDSH_COMMUNICATION;
 }
 
 /*
@@ -245,7 +516,18 @@ int send_message_eof(int cli_socket){
  *           we were unable to send the message followed by the EOF character. 
  */
 int send_message_string(int cli_socket, char *buff){
-    return WARN_RDSH_NOT_IMPL;
+    int bytes_sent;
+    //sends the message to the client interface
+    bytes_sent = send(cli_socket, buff, strlen(buff), 0);
+    if (bytes_sent == -1) {
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    if (send_message_eof(cli_socket) != OK) {
+        return ERR_RDSH_COMMUNICATION;
+    }
+
+    return OK;
 }
 
 
@@ -288,7 +570,86 @@ int send_message_string(int cli_socket, char *buff){
  *                  get this value. 
  */
 int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
-    return WARN_RDSH_NOT_IMPL;
+    int pipe_fds[2]; //File descriptors
+    pid_t pid;
+    int prev_fd = cli_sock;  
+    int status;
+    int rc = 0;
+
+    if (!clist || clist->num == 0) {
+        return EXIT_FAILURE;
+    }
+
+    //This for loops attempts to execute each command in the pipeline
+    for (int i = 0; i < clist->num; i++) {
+
+        if (i < clist->num - 1) {  
+            if (pipe(pipe_fds) < 0) {
+                return EXIT_FAILURE;
+            }
+        }
+        //Check if the command is a built-in command for cd
+        if (rsh_built_in_cmd(&clist->commands[i]) == BI_EXECUTED){
+            continue;
+        } 
+        pid = fork(); //Create a child process
+        if (pid == -1) {
+            return EXIT_FAILURE;
+        }
+
+        if (pid == 0) { //Child process
+            //Redirect input for the first command to the client socket or previous process
+            if (i == 0) {
+                dup2(cli_sock, STDIN_FILENO);
+            } else {
+                dup2(prev_fd, STDIN_FILENO);
+            }
+            //Redirect output to the next process or client socket 
+            if (i < clist->num - 1) {
+                dup2(pipe_fds[1], STDOUT_FILENO);
+            } else {
+                dup2(cli_sock, STDOUT_FILENO);
+                dup2(cli_sock, STDERR_FILENO);
+            }
+            
+            //Close all pipes in child process
+            close(pipe_fds[0]);
+            close(pipe_fds[1]);
+            close(prev_fd);
+            close(cli_sock);
+
+            //checks if the command is built-in dragon command
+            if (rsh_built_in_cmd(&clist->commands[i]) == BI_CMD_DRAGON){
+                print_dragon();
+                exit(EXIT_SUCCESS);
+            } 
+            //Execute the command
+            rc = execvp(clist->commands[i].argv[0], clist->commands[i].argv);
+            //Checks if the command is invalid
+            if (rc != 0){
+                printf("Command is invalid or not implemented\n");
+            }
+            exit(EXIT_FAILURE);
+        } else { 
+            if (i < clist->num - 1) {
+                close(pipe_fds[1]);  
+            }
+
+            if (prev_fd != cli_sock) {
+                close(prev_fd);  
+            }
+
+            if (i < clist->num - 1) {  
+                prev_fd = pipe_fds[0];
+            } else { 
+                prev_fd = cli_sock;
+            }
+        
+        }
+    }
+    //Wait for all children
+    waitpid(pid, &status, 0);
+    return WEXITSTATUS(status);
 }
 
 /**************   OPTIONAL STUFF  ***************/
@@ -326,7 +687,17 @@ int rsh_execute_pipeline(int cli_sock, command_list_t *clist) {
  */
 Built_In_Cmds rsh_match_command(const char *input)
 {
-    return BI_NOT_IMPLEMENTED;
+    //handles all the built-in commands by matching them with the input
+    if (strcmp(input, "cd") == 0){
+        return BI_CMD_CD;
+    } else if (strcmp(input, "dragon") == 0) {
+        return BI_CMD_DRAGON;
+    } else if (strcmp(input, EXIT_CMD) == 0){
+        return BI_CMD_EXIT;
+    } else if (strcmp(input, "stop-server") == 0){
+        return BI_CMD_STOP_SVR;
+    } 
+    return BI_NOT_BI;
 }
 
 /*
@@ -363,5 +734,16 @@ Built_In_Cmds rsh_match_command(const char *input)
  */
 Built_In_Cmds rsh_built_in_cmd(cmd_buff_t *cmd)
 {
-    return BI_NOT_IMPLEMENTED;
+    //only the cd command is directly executed, while other commands must be done directly on the other functions
+    if (rsh_match_command(cmd->argv[0]) == BI_CMD_CD) {
+        if (cmd->argc == 2) {
+            if (chdir(cmd->argv[1]) != 0) {
+                return ENOTDIR;
+            }
+            return BI_EXECUTED;
+        } else if (cmd->argc > 2) {
+            return ERR_TOO_MANY_COMMANDS;
+        }
+    } 
+    return rsh_match_command(cmd->argv[0]);
 }

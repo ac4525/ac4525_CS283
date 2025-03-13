@@ -66,6 +66,7 @@ int send_message_string(int cli_socket, char *buff);
 int process_cli_requests(int svr_socket);
 int exec_client_requests(int cli_socket);
 int rsh_execute_pipeline(int socket_fd, command_list_t *clist);
+int parse_command(char *cmd, command_list_t *cmd_list);
 
 // SEE COMMENTS IN THE CODE, THESE ARE OPTIONAL IN CASE YOU WANT TO PROVIDE
 // SUPPORT FOR BUILT-IN FUNCTIONS DIFFERENTLY 
